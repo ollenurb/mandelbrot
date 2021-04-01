@@ -3,6 +3,7 @@
 *.swp
 *.tag
 *~
+*.png
 *_flymake.hs
 .hsenv
 .stack-work/

@@ -1,16 +1,17 @@
 module Main where
 
 import Data.Complex
-import Graphics.Gloss
-import qualified Data.ByteString as B
 import Data.Word8
-import Control.Parallel.Strategies (rdeepseq, parMap)
+import Codec.Picture
 
 maxIterations :: Int
 maxIterations = 255
 
-imgDim :: Int
-imgDim = 1000
+imgWidth :: Int
+imgWidth = 1920
+
+imgHeight :: Int
+imgHeight = 1080
 
 f :: RealFloat a => Complex a -> Complex a -> Complex a
 f c z = z^2 + c
@@ -19,26 +20,18 @@ fractal :: RealFloat a => Complex a -> Complex a -> Int
 fractal c init = length . takeWhile (\x -> magnitude x <= 2) . take maxIterations $ iterated
     where iterated = iterate (f c) init
 
-format :: BitmapFormat
-format = BitmapFormat TopToBottom PxRGBA
-
 main :: IO ()
-main = display window white $ bitmapOfByteString imgDim imgDim format mandelbrotImage False
-    where window = InWindow "Mandelbrot" (100, 100) (300, 300)
+main = writePng "./mandel.png" mandelbrotImage
 
-mandelbrotImage :: B.ByteString
-mandelbrotImage = B.pack $ concat $ (parMap rdeepseq) computePixell pixels
+mandelbrotImage :: Image PixelRGB8
+mandelbrotImage = generateImage generatePixel imgWidth imgHeight
 
-pixels :: [(Int, Int)]
-pixels = [(x, y) | x <- [0..imgDim-1], y <- [0..imgDim-1]]
+generatePixel :: Int -> Int -> PixelRGB8
+generatePixel x y = PixelRGB8 iters iters iters
+    where
+        iters = fromIntegral $ fractal (scX :+ scY) (0 :+ 0)
+        scY = scaleInterval (0.0, fromIntegral imgHeight) (-1.0, 1.0) $ fromIntegral y
+        scX = scaleInterval (0.0, fromIntegral imgWidth) (-2.0, 0.5) $ fromIntegral x
 
 scaleInterval :: Fractional a => (a, a) -> (a, a) -> a -> a
 scaleInterval (a, b) (c, d) t = c + (((d - c) * (t - a)) / (b - a))
-
-computePixell :: (Int, Int) -> [Word8]
-computePixell (x, y) = [grayScale, grayScale, grayScale, 255]
-    where
-        grayScale = fromIntegral $ fractal (scX :+ scY) (0 :+ 0)
-        scY = scaleInterval (0.0, fromIntegral imgDim) (-1.0, 1.0) $ fromIntegral y
-        scX = scaleInterval (0.0, fromIntegral imgDim) (-2.0, 0.5) $ fromIntegral x
-
